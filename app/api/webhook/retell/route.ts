@@ -27,22 +27,48 @@ export async function POST(request: NextRequest) {
         const callResponse = await fetch(`https://api.retellai.com/v2/get-call/${call?.call_id}`)
         const callData = await callResponse.json()
         console.log('callData---------->', callData);
-        
+
+        let memberData: any = null
+        let memberId: string | null = null
+        let signals: any[] = []
+
         // If transcript is available, process it
         if (call?.transcript) {
           try {
-            const memberData = extractMemberDataFromTranscript(call.transcript)
+            memberData = extractMemberDataFromTranscript(call.transcript)
             
             // Save to Airtable
-            const memberId = await saveMemberData(memberData)
+            memberId = await saveMemberData(memberData)
             
             // Generate signals
-            const signals = await generateSignals(memberData)
+            signals = await generateSignals(memberData)
             
             console.log(`Member data saved: ${memberId}, Signals generated: ${signals.length}`)
           } catch (error) {
             console.error('Error processing call transcript:', error)
           }
+        }
+        
+        // Emit call data to frontend via WebSocket
+        try {
+          const io = global.io
+          if (io) {
+            const webSocketData = {
+              event: 'call_ended',
+              callId: call?.call_id,
+              callData: callData,
+              memberData: memberData,
+              memberId: memberId,
+              signals: signals,
+              timestamp: new Date().toISOString()
+            }
+            io.emit('call_data', webSocketData)
+            console.log('Emitted call data via WebSocket:', webSocketData)
+          } else {
+            console.warn('Socket.IO instance not available')
+          }
+        } catch (error) {
+          console.error('Error emitting WebSocket event:', error)
         }
         
         // Acknowledge the receipt of the event

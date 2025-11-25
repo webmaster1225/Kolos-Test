@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Card from '@/components/Card'
 import { RetellWebClient } from 'retell-client-js-sdk'
+import { io, Socket } from 'socket.io-client'
 
 interface Message {
   id: string
@@ -12,6 +14,7 @@ interface Message {
 }
 
 export default function ChatPage() {
+  const router = useRouter()
   const [messages, setMessages] = useState<Message[]>([])
   const [callId, setCallId] = useState('')
   const [input, setInput] = useState('')
@@ -21,6 +24,7 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const retellWidgetRef = useRef<any>(null)
   const lastMessageRef = useRef<string>('') // Track last message to prevent duplicates
+  const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -29,7 +33,61 @@ export default function ChatPage() {
   useEffect(() => {
     // Initialize Retell SDK
     initializeRetell()
+    
+    // Initialize WebSocket connection
+    initializeWebSocket()
+    
+    // Cleanup on unmount
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect()
+      }
+    }
   }, [])
+
+  const initializeWebSocket = () => {
+    try {
+      // Connect to WebSocket server
+      const socket = io(process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3000', {
+        transports: ['websocket', 'polling'],
+      })
+      
+      socketRef.current = socket
+      
+      socket.on('connect', () => {
+        console.log('WebSocket connected:', socket.id)
+      })
+      
+      socket.on('disconnect', () => {
+        console.log('WebSocket disconnected')
+      })
+      
+      // Listen for call data events
+      socket.on('call_data', (data: any) => {
+        console.log('Received call data via WebSocket:', data)
+        
+        // Store the data in sessionStorage to pass to dashboard
+        if (data.memberData || data.callData) {
+          sessionStorage.setItem('callData', JSON.stringify({
+            memberData: data.memberData,
+            memberId: data.memberId,
+            signals: data.signals,
+            callData: data.callData,
+            callId: data.callId
+          }))
+          
+          // Navigate to dashboard
+          router.push('/dashboard')
+        }
+      })
+      
+      socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error)
+      })
+    } catch (error) {
+      console.error('Error initializing WebSocket:', error)
+    }
+  }
 
   const initializeRetell = () => {
     try {

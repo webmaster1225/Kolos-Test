@@ -34,6 +34,39 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // First, check if we have call data from WebSocket (sessionStorage)
+    const callDataFromStorage = sessionStorage.getItem('callData')
+    
+    if (callDataFromStorage) {
+      try {
+        const parsedData = JSON.parse(callDataFromStorage)
+        console.log('Loaded call data from WebSocket:', parsedData)
+        
+        // Set member data if available
+        if (parsedData.memberData) {
+          setMember({
+            id: parsedData.memberId,
+            ...parsedData.memberData
+          })
+        }
+        
+        // Set signals if available
+        if (parsedData.signals && Array.isArray(parsedData.signals)) {
+          setSignals(parsedData.signals)
+        }
+        
+        // Clear the sessionStorage after using it
+        sessionStorage.removeItem('callData')
+        
+        setLoading(false)
+        return
+      } catch (err) {
+        console.error('Error parsing call data from storage:', err)
+        // Fall through to load from API
+      }
+    }
+    
+    // If no WebSocket data, load from API
     loadDashboardData()
   }, [])
 

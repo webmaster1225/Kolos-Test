@@ -4,9 +4,9 @@
   "description": "AI Audio Assistant with Dashboard for Member Profiles and Signals",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node server.js",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_ENV=production node server.js",
     "lint": "next lint"
   },
   "dependencies": {
@@ -16,7 +16,9 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "retell-client-js-sdk": "^2.0.7",
-    "retell-sdk": "^1.15.21"
+    "retell-sdk": "^1.15.21",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@types/node": "^20.10.5",
